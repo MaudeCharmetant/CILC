@@ -33,7 +33,7 @@ def smooth2reso(wt_reso,ori_reso,Hmap):
 
     """
                   
-    FWHM_i = m.sqrt(wt_reso**2 - ori_reso**2) 
+    FWHM_i = np.sqrt(wt_reso**2 - ori_reso**2) 
     FWHM_f = FWHM_i/ 60 * np.pi/180
     Fmap = hp.smoothing(Hmap, fwhm=FWHM_f, beam_window=None, pol=False, iter=0, lmax=None,mmax=None)
     
