@@ -8,6 +8,16 @@ from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
+#------------Physics--------------
+
+cosmo = FlatLambdaCDM(H0=70, Om0=0.3, Tcmb0=2.7255)
+T_CMB = cosmo.Tcmb0.si.value #
+k_B = cst.k_B.value
+h = cst.h.value
+c = cst.c.value
+sig_T = cst.sigma_T.value #Thomson cross section in m2 
+me = cst.m_e.value #Electron mass in kg 
+
 #------------Functions--------------
 
 def smooth2reso(wt_reso,ori_reso,Hmap): 
