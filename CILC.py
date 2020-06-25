@@ -4,6 +4,9 @@ import numpy as np
 import healpy as hp
 from astropy.cosmology import FlatLambdaCDM
 from astropy import constants as cst
+from matplotlib import rc
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+rc('text', usetex=True)
 
 #------------Functions--------------
 
