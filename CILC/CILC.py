@@ -137,8 +137,8 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
                 
                 #if median == True: 
                     
-                median = np.median(Fmap[j:j+It-1])
-                cube[0:It-1,k,i]+= Fmap[j:j+It-1] - [median]*(It-1)
+                median = np.median(Fmap[j:j+It])
+                cube[0:It,k,i]+= Fmap[j:j+It] - [median]*(It)
                 k = k+1   
                     
                 #else: 
