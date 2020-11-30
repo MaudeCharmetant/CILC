@@ -49,8 +49,7 @@ def smooth2reso(wt_reso,ori_reso,Hmap):
     
     return Fmap
     
-    
- def mergemaps(maps_array,wt_reso,dic_reso): 
+def mergemaps(maps_array,wt_reso,dic_reso): 
     
     """
     Function which merge a list of map into a single matrix.  
