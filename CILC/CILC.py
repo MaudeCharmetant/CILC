@@ -240,6 +240,7 @@ def D_I_tSZ(x,y):
     I_0 = (2*(cst.k_B.value*T_CMB)**3)/(cst.h.value*cst.c.value)**2    
     x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB))    
     Delta_I = np.array(I_0*y*(x_nu**4)*(np.exp(x_nu)/(np.exp(x_nu)-1)**2)*((x_nu*(np.exp(x_nu)+1)/(np.exp(x_nu)-1))-4))
+    Delta_I = Delta_I * T_CMB * (np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu)) #To make tSZ in K_CMB units. 
     
     #Give feedback to the operator : 
     print("Delta I as been computed ")
@@ -347,10 +348,10 @@ def CILC_weights(mix_vect_tSZ,mix_vect_CMB,data,cov_matrix,k,nside_tess):
 
     #Compute the weight of the ILC : 
     inv_cov = np.linalg.inv(cov_matrix) #Take the inverse of the covariance matrix. 
-    p1 = (inv_cov  @ mix_vect_CMB) * (np.transpose(mix_vect_tSZ) @ inv_cov @ mix_vect_tSZ)
-    p2 = (inv_cov  @ mix_vect_tSZ) *  (np.transpose(mix_vect_tSZ) @ inv_cov @ mix_vect_CMB)
-    p3 = (np.transpose(mix_vect_tSZ) @ inv_cov  @ mix_vect_tSZ) * (np.transpose(mix_vect_CMB) @ inv_cov  @ mix_vect_CMB)
-    p4 = (np.transpose(mix_vect_tSZ) @ inv_cov  @ mix_vect_CMB)**2
+    p1 = (np.transpose(mix_vect_tSZ) @ inv_cov @ mix_vect_tSZ) * (np.transpose(mix_vect_CMB) @ inv_cov)
+    p2 = ( np.transpose(mix_vect_CMB) @ inv_cov @  mix_vect_tSZ ) * ( np.transpose(mix_vect_tSZ) @ inv_cov )
+    p3 =  (np.transpose(mix_vect_CMB) @ inv_cov  @ mix_vect_CMB) * (np.transpose(mix_vect_tSZ) @ inv_cov  @ mix_vect_tSZ)
+    p4 = (np.transpose(mix_vect_CMB) @ inv_cov  @ mix_vect_tSZ)**2
     
     CILC_weight = (p1 - p2) / (p3 - p4)
     
@@ -481,7 +482,7 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
         else: 
             
             mix_tSZ = mixing_vector_tSZ(dic_freq=dic_freq)  
-            mix_CMB = mixing_vector_CMB(dic_freq=dic_freq) 
+            mix_CMB = [1]*len(dic_freq)
             fmap = CILC_weights(mix_vect_tSZ=mix_tSZ,mix_vect_CMB=mix_CMB,data=Cube_map,cov_matrix=cov_mat[0],
                                 k=0,nside_tess=nside_tess)
             
@@ -513,17 +514,17 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
             
                 mix = mixing_vector_tSZ(dic_freq=dic_freq)
                 y = ILC_weights(mix_vect=mix,data=Cube_map,cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess)  
-                fmap[i:i+It]+=y
+                fmap[i:i+It]=y
                 l=l+1
                 
                 
             else:
                 
                 mix_tSZ = mixing_vector_tSZ(dic_freq=dic_freq)  
-                mix_CMB = mixing_vector_CMB(dic_freq=dic_freq)               
+                mix_CMB = [1]*len(dic_freq)              
                 compo = CILC_weights(mix_vect_tSZ=mix_tSZ,mix_vect_CMB=mix_CMB,data=Cube_map,cov_matrix=cov_mat[0],
                                 k=l,nside_tess=nside_tess)
-                fmap[i:i+It]+=compo
+                fmap[i:i+It]=compo
                 l=l+1
             
             if mask is not None: 
