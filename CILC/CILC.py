@@ -239,7 +239,7 @@ def D_I_tSZ(x,y):
     I_0 = (2*(cst.k_B.value*T_CMB)**3)/(cst.h.value*cst.c.value)**2    
     x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB))    
     Delta_I = np.array(I_0*y*(x_nu**4)*(np.exp(x_nu)/(np.exp(x_nu)-1)**2)*((x_nu*(np.exp(x_nu)+1)/(np.exp(x_nu)-1))-4))
-    Delta_I = Delta_I * T_CMB * (np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu)) #To make tSZ in K_CMB units. 
+    Delta_I = Delta_I * T_CMB * ((np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu)) #To make tSZ in K_CMB units. 
     
     #Give feedback to the operator : 
     print("Delta I as been computed ")
