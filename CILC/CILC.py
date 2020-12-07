@@ -247,7 +247,7 @@ def D_I_CMB(x):
     #Compute Delta I :  
     x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB)) 
     A=np.array((2*cst.h.value*x**3)/(cst.c.value**2))  
-    Delta_I= A * (x_nu/T_CMB)* np.exp(x_nu) / ((np.exp(x_nu)-1)**2)
+    Delta_I= A * (x_nu/T_CMB)* np.exp(x_nu) / ((np.exp(x_nu)-1)**2) * 1e20
     
     #Give feedback to the operator : 
     print("Delta I as been computed ")
@@ -284,7 +284,7 @@ def mixing_vector_tSZ(dic_freq,MJy=False):
     #For each frequency channel, compute Delta_I : 
     for i in range(len(dic_freq)):
         
-        mix_vect.append(Delta_I[dic_freq[i]]*(1e20))
+        mix_vect.append(Delta_I[dic_freq[i]])
         
     #Give feeback to the operator :    
     print('The mixing vector of tSZ is : ',mix_vect)
@@ -323,7 +323,7 @@ def mixing_vector_CMB(dic_freq,MJy=False):
         #For each frequency channel, compute Delta_I : 
         for i in range(len(dic_freq)):
 
-            mix_vect.append(Delta_I[dic_freq[i]]*(1e20))
+            mix_vect.append(Delta_I[dic_freq[i]])
     else: 
         
         mix_vect = [1]*len(dic_freq)
