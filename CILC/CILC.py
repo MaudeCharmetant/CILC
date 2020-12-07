@@ -363,7 +363,6 @@ def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):
         
     inv_cov = np.linalg.inv(cov_matrix) #Take the inverse of the covariance matrix. 
     ILC_weight = (inv_cov @ mix_vect) / (np.transpose(mix_vect) @ inv_cov @ mix_vect) #Compute the weights
-    print('ILC weights are : ',ILC_weight)
     y=0  # Initialisation of the y map. 
     
     #Compute y map : 
