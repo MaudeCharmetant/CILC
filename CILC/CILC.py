@@ -83,7 +83,7 @@ def mergemaps(maps_array,wt_reso,dic_reso):
     
             stacked = np.concatenate((stacked,[Hmap]),axis=0)
     
-    return stacked   
+    return stacked  
     
     
 def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq): 
@@ -137,7 +137,7 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
                 #if median == True: 
                     
                 median = np.median(Fmap[j:j+It])
-                cube[0:It,k,i]+= Fmap[j:j+It] - [median]*(It)
+                cube[0:It,k,i]+= Fmap[j:j+It]
                 k = k+1   
                     
                 #else: 
@@ -187,6 +187,45 @@ def covcorr_matrix(data,rowvar,mask,dic_freq):
     
     return (cov_matrix,corr_matrix)
 
+def D_I_tSZ(x,y,MJy=False):
+    
+    """
+    Function which compute the tSZ spectral shape. 
+
+    Parameters
+    ----------
+    
+    x : array
+        Frequency range over which the tSZ spectral shape will be computed. 
+    y : float
+        Value of the Compton-y parameter assumed here. 
+    MJy : bool
+        If False display the spectral changed in K_CMB units. If True display it in MJy/sr units. 
+        
+    Returns
+    -------
+    array
+        Array contaning the Variarion of intensity produced by tSZ over the fequencies. 
+
+    """
+    
+ 
+    #Compute Delta I : 
+    I_0 = (2*(cst.k_B.value*T_CMB)**3)/(cst.h.value*cst.c.value)**2  
+    I_0 = I_0*1e20
+    x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB))    
+    Delta_I = np.array(I_0*y*(x_nu**4)*(np.exp(x_nu)/(np.exp(x_nu)-1)**2)*((x_nu*(np.exp(x_nu)+1)/(np.exp(x_nu)-1))-4))
+    
+    if MJy == False:
+        
+        Delta_I = Delta_I * T_CMB * ((np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu)) #Convert to K_CMB units
+        
+    
+    #Give feedback to the operator : 
+    print("Delta I as been computed,I_0 =", I_0)
+    
+    return   Delta_I
+
 def D_I_CMB(x):
     
     """
@@ -203,50 +242,19 @@ def D_I_CMB(x):
     array
         Array contaning the variarion of intensity produced by CMB over the fequencies. 
 
-    """
-    
+    """ 
+        
     #Compute Delta I :  
     x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB)) 
-    A=np.array((2*cst.h.value*x**3)/(cst.c.value**2))      
-    Delta_I = A/(np.exp(x_nu)-1)
+    A=np.array((2*cst.h.value*x**3)/(cst.c.value**2))  
+    Delta_I= A * (x_nu/T_CMB)* np.exp(x_nu) / ((np.exp(x_nu)-1)**2)
     
     #Give feedback to the operator : 
     print("Delta I as been computed ")
     
     return   Delta_I
 
-def D_I_tSZ(x,y):
-    
-    """
-    Function which compute the tSZ spectral shape. 
-
-    Parameters
-    ----------
-    
-    x : array
-        Frequency range over which the tSZ spectral shape will be computed. 
-    y : float
-        Value of the Compton-y parameter assumed here. 
-        
-    Returns
-    -------
-    array
-        Array contaning the Variarion of intensity produced by tSZ over the fequencies. 
-
-    """
-    
-    #Compute Delta I : 
-    I_0 = (2*(cst.k_B.value*T_CMB)**3)/(cst.h.value*cst.c.value)**2    
-    x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB))    
-    Delta_I = np.array(I_0*y*(x_nu**4)*(np.exp(x_nu)/(np.exp(x_nu)-1)**2)*((x_nu*(np.exp(x_nu)+1)/(np.exp(x_nu)-1))-4))
-    Delta_I = Delta_I * T_CMB * ((np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu)) #To make tSZ in K_CMB units. 
-    
-    #Give feedback to the operator : 
-    print("Delta I as been computed ")
-    
-    return   Delta_I
-
-def mixing_vector_CMB(dic_freq):
+def mixing_vector_tSZ(dic_freq,MJy=False):
     
     """
     Function which compute the multiplying vector to transform a y-map into a tSZ(f). 
@@ -256,41 +264,8 @@ def mixing_vector_CMB(dic_freq):
     
     dic_freq : dic
         Dictonary containing the frequencies we want to get a tSZ map of.  
-        
-    Returns
-    -------
-    array
-        Array contaning the multiplying vector. 
-
-    """       
-    
-    #Initilisation : 
-    freq = np.arange(0,1000)*1e9
-    mix_vect = []
-    
-    # Compute the spectral shape of tSZ : 
-    Delta_I = D_I_CMB(freq)
-
-    #For each frequency channel, compute Delta_I : 
-    for i in range(len(dic_freq)):
-        
-        mix_vect.append(Delta_I[dic_freq[i]]*(1e20))
-        
-    #Give feeback to the operator :    
-    print('The mixing vector is : ',mix_vect)
-
-    return mix_vect
-
-def mixing_vector_tSZ(dic_freq):
-    
-    """
-    Function which compute the multiplying vector to transform a y-map into a tSZ(f). 
-
-    Parameters
-    ----------
-    
-    dic_freq : dic
-        Dictonary containing the frequencies we want to get a tSZ map of.  
+    MJy : bool 
+        If False return the temperature of change of the tSZ, if True the intensity change. 
         
     Returns
     -------
@@ -304,7 +279,7 @@ def mixing_vector_tSZ(dic_freq):
     mix_vect = []
     
     # Compute the spectral shape of tSZ : 
-    Delta_I = D_I_tSZ(freq,1)
+    Delta_I = D_I_tSZ(freq,1,MJy=MJy)
 
     #For each frequency channel, compute Delta_I : 
     for i in range(len(dic_freq)):
@@ -312,62 +287,51 @@ def mixing_vector_tSZ(dic_freq):
         mix_vect.append(Delta_I[dic_freq[i]]*(1e20))
         
     #Give feeback to the operator :    
-    print('The mixing vector is : ',mix_vect)
+    print('The mixing vector of tSZ is : ',mix_vect)
 
     return mix_vect
 
-def CILC_weights(mix_vect_tSZ,mix_vect_CMB,data,cov_matrix,k,nside_tess):   
+def mixing_vector_CMB(dic_freq,MJy=False):
     
-        
     """
-    Function which compute the weights used by the ILC and do the ILC.
+    Function which compute the multiplying vector to transform a y-map into a tSZ(f). 
 
     Parameters
-    ----------    
-    mix_vect_tSZ : list 
-        List containing all the values of the tSZ mixing vector. 
-    mix_vect_CMB : list 
-        List containing all the values of the CMB mixing vector.
-    data : array 
-        Array containing all the maps we want to apply the CILC on. 
-    cov_matrix : array 
-        Array containing the covariance matrix. 
-    k : int 
-        field k, when sky is divided into fields, we apply the CILC on each of the patches separatly.
-    nside_tess : int 
-        the number of pixels generated by this nside is used to separated the maps into fields.
-        I recommend nside_tess = 4.
+    ----------
+    
+    dic_freq : dic
+        Dictonary containing the frequencies we want to get a tSZ map of.  
+    MJy : bool 
+        If False return the temperature of change of the CMB, if True the intensity change.
         
     Returns
     -------
     array
-        Containing the CMB map. 
+        Array contaning the multiplying vector. 
 
-    """ 
+    """       
+    
+    #Initilisation : 
+    freq = np.arange(0,1000)*1e9
+    mix_vect = []
+    
+    if MJy == True: 
+    
+        # Compute the spectral shape of CMB : 
+        Delta_I = D_I_CMB(freq)
 
-    #Compute the weight of the ILC : 
-    inv_cov = np.linalg.inv(cov_matrix) #Take the inverse of the covariance matrix. 
-    p1 = (np.transpose(mix_vect_tSZ) @ inv_cov @ mix_vect_tSZ) * (np.transpose(mix_vect_CMB) @ inv_cov)
-    p2 = ( np.transpose(mix_vect_CMB) @ inv_cov @  mix_vect_tSZ ) * ( np.transpose(mix_vect_tSZ) @ inv_cov )
-    p3 =  (np.transpose(mix_vect_CMB) @ inv_cov  @ mix_vect_CMB) * (np.transpose(mix_vect_tSZ) @ inv_cov  @ mix_vect_tSZ)
-    p4 = (np.transpose(mix_vect_CMB) @ inv_cov  @ mix_vect_tSZ)**2
-    
-    CILC_weight = (p1 - p2) / (p3 - p4)
-    
-    print('CILC weights are : ',CILC_weight)
-    y=0  # Initialisation of the y map. 
-    
-    #Compute y map : 
-    for i in range(0,len(mix_vect_tSZ)): #Go through all the frequencies.
+        #For each frequency channel, compute Delta_I : 
+        for i in range(len(dic_freq)):
+
+            mix_vect.append(Delta_I[dic_freq[i]]*(1e20))
+    else: 
         
-        if nside_tess == 0: 
-            map_Ti = data[i]
-        else: 
+        mix_vect = [1]*dic_freq
         
-            map_Ti = data[:,k,i]
-        y = y + CILC_weight[i] * map_Ti  
+    #Give feeback to the operator :    
+    print('The mixing vector of CMB is : ',mix_vect)
 
-    return y
+    return mix_vect
 
 def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):   
     
@@ -387,7 +351,7 @@ def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):
         field k, when sky is divided into fields, we apply the CILC on each of the patches separatly.
     nside_tess : int 
         the number of pixels generated by this nside is used to separated the maps into fields.
-        I recommend nside_tess = 4. If nside_tess = 0 then compute the ILC ove the full non-separated sky. 
+        I recommend nside_tess = 4.If nside_tess = 0 then compute the ILC ove the full non-separated sky.
 
     
     Returns
@@ -414,7 +378,60 @@ def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):
 
     return y
 
-def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median,gauss,CILC,mask):
+def CILC_weights(mix_vect_b,mix_vect_a,data,cov_matrix,k,nside_tess):   
+    
+        
+    """
+    Function which compute the weights used by the ILC and do the ILC.
+
+    Parameters
+    ----------    
+    mix_vect_b : list 
+        List containing all the values of the mixing vector of the signal we want to cancel. 
+    mix_vect_a : list 
+        List containing all the values of the mixing vector of the signal we want to get back.
+    data : array 
+        Array containing all the maps we want to apply the CILC on. 
+    cov_matrix : array 
+        Array containing the covariance matrix. 
+    k : int 
+        field k, when sky is divided into fields, we apply the CILC on each of the patches separatly.
+    nside_tess : int 
+        the number of pixels generated by this nside is used to separated the maps into fields.
+        I recommend nside_tess = 4.
+        
+    Returns
+    -------
+    array
+        Containing the CMB map. 
+
+    """ 
+
+    #Compute the weight of the ILC : 
+    inv_cov = np.linalg.inv(cov_matrix) #Take the inverse of the covariance matrix. 
+    p1 = (inv_cov  @ mix_vect_a) * (np.transpose(mix_vect_b) @ inv_cov @ mix_vect_b)
+    p2 = (inv_cov  @ mix_vect_b) *  (np.transpose(mix_vect_b) @ inv_cov @ mix_vect_a)
+    p3 = (np.transpose(mix_vect_b) @ inv_cov  @ mix_vect_b) * (np.transpose(mix_vect_a) @ inv_cov  @ mix_vect_a)
+    p4 = (np.transpose(mix_vect_b) @ inv_cov  @ mix_vect_a)**2
+    
+    CILC_weight = (p1 - p2) / (p3 - p4)
+    
+    y=0  # Initialisation of the y map. 
+    
+    #Compute y map : 
+    for i in range(0,len(mix_vect_a)): #Go through all the frequencies.
+        
+        if nside_tess == 0: 
+            map_Ti = data[i]
+        else: 
+        
+            map_Ti = data[:,k,i]
+        y = y + CILC_weight[i] * map_Ti  
+
+    return y
+
+def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median,gauss,
+                CILC,mask,mix_vec_min,mix_vec_max):
     
     """
     Code which perform all the steps of an ILC or CILC. 
@@ -422,6 +439,137 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
     Parameters
     ----------    
     dic_freq : dictonary
+        Dictonary containing all the frequencies of the map we want to apply the ILC or CILC on. 
+    maps_array : arrray 
+        Array containing all the maps we want to apply the ILC on. 
+    nside_map : int 
+        Nside of the all the maps we want to apply the ILC on. 
+    nside_tess : int 
+        Nside that define the number of field we will separate the all sky map in. To apply the ILC or CILC
+        on each of this field separatly. I recommend nside_tess = 4.
+    wt_reso : float 
+        Desired resolution of all the maps in arcmin. The maps will all the smoothed to this resolution. 
+    dic_reso : dictonary 
+        Dictonary contaning all the resolution of each of the maps we want to apply the ILC or CILC on.
+    median : bool 
+        If True will remove the ILC?CILC offset by substracing the median of each field to itself. 
+    gauss : bool 
+        If True will remove the offset of the ILC/CILC byt fitting a gaussian to the pixel histogran
+        and susbtracting the mean of this gaussian to each field,         
+    CILC : bool 
+        If True the code will perform a CILC instead of and ILC. 
+    mask : array 
+        Array containing the mask if data are masked. 
+    mix_vec_min : array 
+        Array containing the mixing vector of the signal we want to minimize. In case CILC=False, this can 
+        be any array, it does not matter. 
+    mix_vec_max : array 
+        Array containing the mixing vector of the signal we want to maximize. In case CILC=False, this is the
+        signal we want to retrieve with the ILC. 
+    
+    Returns
+    -------
+    array
+        Cotaining the Compton-y map. 
+
+    """ 
+    
+    if nside_tess == 0:
+        
+        Cube_map = mergemaps(maps_array=maps_array,wt_reso=wt_reso,dic_reso=dic_reso)
+        
+        if mask is not None: 
+            
+            Cube_map *= mask
+            
+        else: 
+            
+            Cube_map = Cube_map  
+            
+        cov_mat = covcorr_matrix(Cube_map,rowvar=True,mask=mask,dic_freq=dic_freq)
+        
+        if CILC == False: 
+                    
+            fmap = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=0,
+                               nside_tess=nside_tess)
+            offset = np.mean(fmap)
+            fmap = fmap - offset
+            
+            if mask is not None: 
+                
+                fmap *= mask
+                
+            else: 
+                
+                fmap = fmap
+        
+        else: 
+            
+            fmap = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
+                                cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess)
+            offset = np.mean(fmap)
+            fmap = fmap - offset
+            
+            if mask is not None: 
+                
+                fmap *= mask
+                
+            else: 
+                
+                fmap = fmap
+    else:
+
+        nfields = hp.nside2npix(nside_tess) 
+        npix = hp.nside2npix(nside_map)
+        It = int(npix/nfields)
+            
+        #Create cube : 
+        Cube_map = map2fields(maps_array=maps_array,It=It,nfields=nfields,wt_reso=wt_reso,dic_reso=dic_reso,
+                                  median=median,gauss=gauss,mask=mask,dic_freq=dic_freq)
+
+        fmap = np.zeros(npix)
+        l=0
+
+        for i in range(0,npix,It):
+                
+            cov_mat = covcorr_matrix(Cube_map[:,l,:],rowvar=False,mask=mask,dic_freq=dic_freq)
+            
+            if  CILC == False: 
+            
+                y = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=l,
+                                nside_tess=nside_tess)  
+                offset = np.median(y)
+                fmap[i:i+It]= (y - offset) 
+                l=l+1
+                
+                
+            else:
+                              
+                compo = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
+                                     cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess)
+                offset = np.median(compo)
+                fmap[i:i+It] = (compo - offset)
+                l=l+1
+            
+            if mask is not None: 
+                
+                fmap *= mask 
+            
+            else: 
+                
+                fmap = fmap
+                    
+                
+    return fmap
+
+def ILC_residuals(resi_maps,true_maps,nside,nside_tess,wt_reso,dic_reso,median,gauss,mask,dic_freq): 
+    
+    """
+    Code to compute the ILC residuals. 
+
+    Parameters
+    ----------    
+    resi_maps : dictonary
         Dictonary containing all the frequencies of the map we want to apply the ILC or CILC on. 
     maps_array : arrray 
         Array containing all the maps we want to apply the ILC on. 
@@ -451,88 +599,33 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
 
     """ 
     
-    if nside_tess == 0:
-        
-        Cube_map = mergemaps(maps_array=maps_array,wt_reso=wt_reso,dic_reso=dic_reso)
-        
-        if mask is not None: 
-            
-            Cube_map *= mask
-            
-        else: 
-            
-            Cube_map = Cube_map  
-            
-        cov_mat = covcorr_matrix(Cube_map,rowvar=True,mask=mask,dic_freq=dic_freq)
-        
-        if CILC == False: 
-            
-            mix = mixing_vector_tSZ(dic_freq=dic_freq)        
-            fmap = ILC_weights(mix_vect=mix,data=Cube_map,cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess)
-            
-            if mask is not None: 
-                
-                fmap *= mask
-                
-            else: 
-                
-                fmap = fmap
-        
-        else: 
-            
-            mix_tSZ = mixing_vector_tSZ(dic_freq=dic_freq)  
-            mix_CMB = [1]*len(dic_freq)
-            fmap = CILC_weights(mix_vect_tSZ=mix_tSZ,mix_vect_CMB=mix_CMB,data=Cube_map,cov_matrix=cov_mat[0],
-                                k=0,nside_tess=nside_tess)
-            
-            if mask is not None: 
-                
-                fmap *= mask
-                
-            else: 
-                
-                fmap = fmap
-    else:
+    
+    npix = hp.nside2npix(nside)
+    It = int(npix/nfields)
 
-        nfields = hp.nside2npix(nside_tess) 
-        npix = hp.nside2npix(nside_map)
-        It = int(npix/nfields)
-            
-        #Create cube : 
-        Cube_map = map2fields(maps_array=maps_array,It=It,nfields=nfields,wt_reso=wt_reso,dic_reso=dic_reso,
-                                  median=median,gauss=gauss,mask=mask,dic_freq=dic_freq)
-
-        fmap = np.zeros(npix)
-        l=0
-
-        for i in range(0,npix,It):
+    #Merge the arrays of the map containing the residual signal and separate them into fields : 
+    cube = map2fields(maps_array=true_maps,It=It,nfields=nfields,wt_reso=wt_reso,dic_reso=dic_reso,
+                              median=median,gauss=gauss,mask=mask,dic_freq=dic_freq)
+    
+    #Apply the ILC on the normal maps to get the coefficients 
+    coeff = All_sky_ILC(dic_freq=dic_freq,maps_array=true_maps,nside_map=nside,nside_tess=nside_tess,
+                    wt_reso=wt_reso,dic_reso=dic_reso,median=median,gauss=gauss,CILC=False,mask=mask)
+    
+    #Merge the arrays of the map containing the residual signal and separate them into fields : 
+    Rcube = map2fields(maps_array=resi_maps,It=It,nfields=nfields,wt_reso=wt_reso,dic_reso=dic_reso,
+                              median=median,gauss=gauss,mask=mask,dic_freq=dic_freq)
+    
+    l=0
+    fmap = np.zeros(npix)
+    
+    for i in range(0,npix,It):
                 
-            cov_mat = covcorr_matrix(Cube_map[:,l,:],rowvar=False,mask=mask,dic_freq=dic_freq)
-            
-            if  CILC == False: 
-            
-                mix = mixing_vector_tSZ(dic_freq=dic_freq)
-                y = ILC_weights(mix_vect=mix,data=Cube_map,cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess)  
-                fmap[i:i+It]=y
-                l=l+1
+        cov_mat = covcorr_matrix(cube[:,l,:],rowvar=False,mask=mask,dic_freq=dic_freq)
+        mix = mixing_vector_tSZ(dic_freq=dic_freq)
+        y = ILC_weights(mix_vect=mix,data=Rcube,cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess)  
+        fmap[i:i+It]+=y[0]
+        l=l+1
                 
-                
-            else:
-                
-                mix_tSZ = mixing_vector_tSZ(dic_freq=dic_freq)  
-                mix_CMB = [1]*len(dic_freq)              
-                compo = CILC_weights(mix_vect_tSZ=mix_tSZ,mix_vect_CMB=mix_CMB,data=Cube_map,cov_matrix=cov_mat[0],
-                                k=l,nside_tess=nside_tess)
-                fmap[i:i+It]=compo
-                l=l+1
-            
-            if mask is not None: 
-                
-                fmap *= mask 
-            
-            else: 
-                
-                fmap = fmap
-                    
-                
+    fmap *= mask 
+    
     return fmap
