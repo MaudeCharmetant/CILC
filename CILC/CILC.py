@@ -275,7 +275,7 @@ def mixing_vector_tSZ(dic_freq,MJy=False):
     """       
     
     #Initilisation : 
-    freq = np.arange(0,1000)*10**9  
+    freq = np.arange(1,1000)*10**9  
     mix_vect = []
     
     # Compute the spectral shape of tSZ : 
@@ -312,7 +312,7 @@ def mixing_vector_CMB(dic_freq,MJy=False):
     """       
     
     #Initilisation : 
-    freq = np.arange(0,1000)*1e9
+    freq = np.arange(1,1000)*1e9
     mix_vect = []
     
     if MJy == True: 
@@ -326,7 +326,7 @@ def mixing_vector_CMB(dic_freq,MJy=False):
             mix_vect.append(Delta_I[dic_freq[i]]*(1e20))
     else: 
         
-        mix_vect = [1]*dic_freq
+        mix_vect = [1]*len(dic_freq)
         
     #Give feeback to the operator :    
     print('The mixing vector of CMB is : ',mix_vect)
