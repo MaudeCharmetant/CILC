@@ -490,7 +490,7 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
                     
             fmap = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=0,
                                nside_tess=nside_tess)
-            offset = np.mean(fmap)
+            offset = np.median(fmap)
             fmap = fmap - offset
             
             if mask is not None: 
@@ -505,7 +505,7 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
             
             fmap = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
                                 cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess)
-            offset = np.mean(fmap)
+            offset = np.median(fmap)
             fmap = fmap - offset
             
             if mask is not None: 
