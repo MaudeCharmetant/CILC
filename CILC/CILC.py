@@ -44,11 +44,11 @@ def smooth2reso(wt_reso,ori_reso,Hmap):
     """
                   
     FWHM_i = np.sqrt(wt_reso**2 - ori_reso**2) 
-    FWHM_f = FWHM_i/ 60 * np.pi/180
+    FWHM_f = FWHM_i/ 60 * np.pi/180 
     Fmap = hp.smoothing(Hmap, fwhm=FWHM_f, beam_window=None, pol=False, iter=0, lmax=None,mmax=None)
     
-    return Fmap
-    
+    return(Fmap)
+
 def mergemaps(maps_array,wt_reso,dic_reso): 
     
     """
@@ -83,9 +83,80 @@ def mergemaps(maps_array,wt_reso,dic_reso):
     
             stacked = np.concatenate((stacked,[Hmap]),axis=0)
     
-    return stacked  
+    return stacked
+
+def gauss(x,a,mu,sigma):
+
+    """
+    Gaussian function 
+
+    Parameters
+    ----------
+    x : array_like
+        Data entering the Gaussian function.
+    a :  array_like
+        Normalization factor of the Gaussian. 
+    mu : float
+        Mean value of the Gaussian.
+    sigma : float
+        Dispersion of the Gaussian.
+        
+    Returns
+    -------
+    str
+        Return the Gaussian function. 
+
+    """
+    
+    return a * np.exp( -(x-mu)**2 / (2*sigma**2) ) 
+
+def gaussian_fit(Hmap,bin_nb): 
+    
+    """
+    Function which display the histogram of the imput data. 
+
+    Parameters
+    ----------
+    data_file : str
+        Name of the FITS file containing the data. 
+    data_path : str
+        Path were the data of the maps are stored. 
+    name_object : str
+        Name of the data we are ploting. For exemple : y map of Coma Cluster.
+    pictures_path : str
+        Path where we are going to save the pictures. 
+    x_axis : str 
+        Unit of the data we displaying. 
+    bin_nb : int 
+        Number of bin desired for the histogram.
+        
+    Returns
+    -------
+    str
+        Tell us where the function stored the image.
+
+    """
+     
+    mu = np.mean(Hmap) #Compute the mean of the datas 
+    sig = np.std(Hmap) #Compute the standard deviation of the datas 
+    data_cut = [] 
+    
+    # Cut the extremes values of the datas we are going to work with 
+    for i in range(len(Hmap)):
+        if mu - 2 * sig < Hmap[i] < mu + 2 * sig: 
+            data_cut.append(Hmap[i])
     
     
+    histo, bins = np.histogram(data_cut, bins=bin_nb) #Compute the Histogram, in histo as all the values of the data by bins
+    x = 0.5*(bins[1:]+bins[0:-1])# take the middle of each bin 
+    
+    #Gaussian FITS :   
+    popt,pcov = curve_fit(gauss,x,histo,p0=(np.max(histo), np.mean(data_cut), np.std(data_cut)),sigma = np.sqrt(histo+1)) #P0 is the initial guess, to guide the fit
+    plt.plot(x,gauss(x,*popt))
+    plt.show()
+    
+    return popt[1]
+
 def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq): 
     
     """
@@ -135,7 +206,7 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
         for j in range(0,len(Fmap),It):  
                 
                 #if median == True: 
-                   
+                    
                 cube[0:It,k,i]+= Fmap[j:j+It]
                 k = k+1   
                     
@@ -246,7 +317,7 @@ def D_I_CMB(x):
     #Compute Delta I :  
     x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB)) 
     A=np.array((2*cst.h.value*x**3)/(cst.c.value**2))  
-    Delta_I= A * (x_nu/T_CMB)* np.exp(x_nu) / ((np.exp(x_nu)-1)**2) * 1e20
+    Delta_I= A * (x_nu/T_CMB)* np.exp(x_nu) / ((np.exp(x_nu)-1)**2) *1e20
     
     #Give feedback to the operator : 
     print("Delta I as been computed ")
@@ -450,7 +521,7 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
     dic_reso : dictonary 
         Dictonary contaning all the resolution of each of the maps we want to apply the ILC or CILC on.
     median : bool 
-        If True will remove the ILC?CILC offset by substracing the median of each field to itself. 
+        If True will remove the ILC/CILC offset by substracing the median of each field to itself. 
     gauss : bool 
         If True will remove the offset of the ILC/CILC byt fitting a gaussian to the pixel histogran
         and susbtracting the mean of this gaussian to each field,         
@@ -472,10 +543,12 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
 
     """ 
     
+    # Case were there is no tessalation of the sky, ILC/CILC is apply on the entire sky
     if nside_tess == 0:
         
-        Cube_map = mergemaps(maps_array=maps_array,wt_reso=wt_reso,dic_reso=dic_reso)
+        Cube_map = mergemaps(maps_array=maps_array,wt_reso=wt_reso,dic_reso=dic_reso) #megerge all frequencies into one array 
         
+        #If one wants to mask a region of the sky
         if mask is not None: 
             
             Cube_map *= mask
@@ -484,37 +557,45 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
             
             Cube_map = Cube_map  
             
-        cov_mat = covcorr_matrix(Cube_map,rowvar=True,mask=mask,dic_freq=dic_freq)
+        cov_mat = covcorr_matrix(Cube_map,rowvar=True,mask=mask,dic_freq=dic_freq) #COmpute covariance matrix
         
+        #Weather one wants to apply ILC
         if CILC == False: 
                     
             fmap = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=0,
-                               nside_tess=nside_tess)
-            offset = np.median(fmap)
-            fmap = fmap - offset
+                               nside_tess=nside_tess)#Compute the ILC-extracted map
             
-            if mask is not None: 
-                
-                fmap *= mask
+            if mask is not None:
+                    
+                not_masked = np.where(fmap[:] != 0)[0]
+                data = fmap[not_masked]
+                offset = np.nanmedian(data)
+                fmap[not_masked] = data - offset
                 
             else: 
+            
+                offset = np.median(fmap)        
+                fmap = fmap - offset
                 
-                fmap = fmap
-        
+        #Weather one wants to apply CILC
         else: 
             
             fmap = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
                                 cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess)
-            offset = np.median(fmap)
-            fmap = fmap - offset
             
             if mask is not None: 
                 
-                fmap *= mask
+                not_masked = np.where(fmap[:] != 0)[0]
+                data = fmap[not_masked]
+                offset = np.nanmedian(data)
+                fmap[not_masked] = data - offset
                 
             else: 
                 
-                fmap = fmap
+                offset = np.median(fmap)
+                fmap = fmap - offset
+    
+    #Tessalation of the sky, the ILC/CILC is applid on several small patches 
     else:
 
         nfields = hp.nside2npix(nside_tess) 
@@ -528,34 +609,52 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
         fmap = np.zeros(npix)
         l=0
 
+        #For each patch : 
         for i in range(0,npix,It):
                 
             cov_mat = covcorr_matrix(Cube_map[:,l,:],rowvar=False,mask=mask,dic_freq=dic_freq)
             
+            #When one is doing a ILC
             if  CILC == False: 
             
                 y = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=l,
                                 nside_tess=nside_tess)  
-                offset = np.median(y)
-                fmap[i:i+It]= (y - offset) 
+                
+                if mask is not None: 
+                    
+                    not_masked = np.where(y[:] != 0)[0]
+                    data = y[not_masked]
+                    offset = np.nanmedian(data)
+                    y[not_masked] = data - offset
+                
+                else: 
+                
+                    offset = np.median(y)
+                    y = y - offset 
+                    
+                fmap[i:i+It]= y 
                 l=l+1
                 
-                
+            #WHen doing a CILC    
             else:
                               
                 compo = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
                                      cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess)
-                offset = np.median(compo)
-                fmap[i:i+It] = (compo - offset)
+                
+                if mask is not None: 
+                    
+                    not_masked = np.where(compo[:] != 0)[0]
+                    data = compo[not_masked]
+                    offset = np.nanmedian(data)
+                    compo[not_masked] = data - offset
+                    
+                else: 
+                    
+                    offset = np.median(compo)
+                    compo = compo - offset 
+                    
+                fmap[i:i+It] = compo 
                 l=l+1
-            
-            if mask is not None: 
-                
-                fmap *= mask 
-            
-            else: 
-                
-                fmap = fmap
                     
                 
     return fmap
