@@ -288,7 +288,7 @@ def D_I_tSZ(x,y,MJy=False):
     
     if MJy == False:
         
-        Delta_I = Delta_I * T_CMB * ((np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu)) #Convert to K_CMB units
+        Delta_I = Delta_I * (T_CMB/I_0) * ((np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu)) #Convert to K_CMB units
         
     
     #Give feedback to the operator : 
