@@ -19,4 +19,4 @@ __version__ = "1.0"
 __bibtex__ = """
 """
 
-from .CILC import (smooth2reso, mergemaps, map2fields, covcorr_matrix, D_I_CMB, D_I_tSZ, mixing_vector_CMB, mixing_vector_tSZ, CILC_weights, ILC_weights, All_sky_ILC)
+from .CILC import (smooth2reso, mergemaps, map2fields, covcorr_matrix, D_I_CMB, D_I_tSZ,D_I_CIB, mixing_vector_CMB, mixing_vector_tSZ,mixing_vector_CIB, CILC_weights, ILC_weights, All_sky_ILC)
