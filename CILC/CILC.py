@@ -324,6 +324,48 @@ def D_I_CMB(x):
     
     return   Delta_I
 
+def D_I_CIB(x,A=1,b=1.2,f_0=350e9,T_CIB=24,MJy=False):
+    
+    """
+    Function which compute the CIB spectral shape. 
+
+    Parameters
+    ----------
+    
+    x : array
+        Frequency range over which the CIB spectral shape will be computed. 
+    A : float 
+        Normalisation of the CIB power spectrum. By default A=1.
+    b : float 
+        By default b=1.2
+    T_CIB : float
+        By default T_CIB=24 Kelvin. 
+    MJy : bool
+        If False display the spectral changed in K_CMB units. If True display it in MJy/sr units.
+        
+    Returns
+    -------
+    array
+        Array contaning the Variarion of intensity produced by CMB over the fequencies. 
+
+    """
+    
+    #Compute Delta I :  
+    I_0 = (2*(cst.k_B.value*T_CMB)**3)/(cst.h.value*cst.c.value)**2  
+    I_0 = I_0*1e20
+    x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB)) 
+    Delta_I = A * (x/f_0)**(3.+b) * (np.exp(cst.h.value*f_0/cst.k_B.value/T_CIB)-1) / (np.exp(cst.h.value*x/cst.k_B.value/T_CIB)-1)
+    
+    if MJy == False: 
+        
+        Delta_I = Delta_I * (T_CMB/I_0) * ((np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu))
+    
+    
+    #Give feedback to the operator : 
+    print("Delta I as been computed ")
+    
+    return   Delta_I
+
 def mixing_vector_tSZ(dic_freq,MJy=False):
     
     """
@@ -400,6 +442,49 @@ def mixing_vector_CMB(dic_freq,MJy=False):
         
     #Give feeback to the operator :    
     print('The mixing vector of CMB is : ',mix_vect)
+
+    return mix_vect
+
+def mixing_vector_CIB(dic_freq,A=1,b=1.2,T_CIB=24,MJy=False):
+    
+    """
+    Function which compute the mixing vector of CIB. 
+
+    Parameters
+    ----------
+    
+    dic_freq : dic
+        Dictonary containing the frequencies we want to get a tSZ map of. 
+    A : float 
+        Normalisation of the CIB power spectrum. By default A=1.
+    b : float 
+        By default b=1.2
+    T_CIB : float
+        By default T_CIB=24 Kelvin.
+    MJy : bool 
+        If False return the temperature of change of the tSZ, if True the intensity change. 
+        
+    Returns
+    -------
+    array
+        Array contaning the multiplying vector. 
+
+    """       
+    
+    #Initilisation : 
+    freq = np.arange(1,1000)*10**9  
+    mix_vect = []
+    
+    # Compute the spectral shape of tSZ : 
+    Delta_I = D_I_CIB(freq,A=A,b=b,T_CIB=T_CIB,MJy=MJy)
+
+    #For each frequency channel, compute Delta_I : 
+    for i in range(len(dic_freq)):
+        
+        mix_vect.append(Delta_I[dic_freq[i]])
+        
+    #Give feeback to the operator :    
+    print('The mixing vector of CIB is : ',mix_vect)
 
     return mix_vect
 
