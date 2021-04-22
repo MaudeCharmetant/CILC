@@ -826,6 +826,28 @@ def ILC_residuals(resi_maps,true_maps,nside,nside_tess,wt_reso,dic_reso,median,g
 
 def weight_maps(nside,nside_tess,dic_freq,mask):  
     
+    """
+    Code to compute the ILC weights maps. 
+
+    Parameters
+    ----------    
+    nside : int 
+        Nside of the maps we applied the ILC/CILC on. 
+    nside_tess : int 
+        Nside that define the number of field we will separate the all sky map in. To apply the ILC or CILC
+        on each of this field separatly. I recommend nside_tess = 4.
+    dic_freq : dictonary 
+        Dictonary contaning all the frequencies of the maps we want to apply the ILC or CILC on.
+    mask : array 
+        Array containing the mask if data are masked. 
+    
+    Returns
+    -------
+    images
+        return Images of the weights maps. 
+
+    """ 
+    
     for j in range(len(dic_freq)): 
 
         npix = hp.nside2npix(nside)
@@ -847,6 +869,33 @@ def weight_maps(nside,nside_tess,dic_freq,mask):
         mask2 = hp.pixelfunc.reorder(mask, r2n = True)
         weight_map = weight_map*mask2
 
-        hp.mollview(map=weight_map, coord=None, unit='MJy/sr', xsize=2000, nest=True, cbar=True, cmap=cm.bwr,
-            norm=None,return_projected_map=True) #min=-6.2248e-6,max=0.000681774,
+        hp.mollview(map=weight_map, coord=None, unit='$\emptyset$', xsize=2000, nest=True, cbar=True, cmap=cm.bwr,
+            norm=None,return_projected_map=True) 
+        
     plt.show()
+    
+def weight_histo(data): 
+    
+    """
+    Code that return the medians values of the weights for each frequency map. 
+
+    Parameters
+    ----------  
+    data : array 
+        Array containing the weight maps.
+    
+    Returns
+    -------
+    array
+        Array containing the medians of the weights for each frequency map. 
+
+    """ 
+
+    m_weights = []
+    for i in range(len(dic_freq)): 
+    
+        x = data[:,i]
+        x = x[np.logical_not(np.isnan(x))]
+        m_weights.append(np.median(x)) 
+    
+    return m_weights  
