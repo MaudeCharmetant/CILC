@@ -58,7 +58,7 @@ def mergemaps(maps_array,wt_reso,dic_reso):
     ----------
     
     maps_array ; array 
-        Array containing all the healpy maps we want to perform the ILC on. 
+        Array containing all the healpy maps we want to perform the ILC on. Should be in RING ordering. 
     wt_reso : float
         desired resolutions of the maps. 
     dic_reso : dictionary
@@ -167,7 +167,7 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
     ----------
     
     maps_array : array 
-        Containing all the healpy maps we want to perform the ILC on.
+        Containing all the healpy maps we want to perform the ILC on should be in RING ordering.
     It : int 
         Number of pixels per field.
     nfields : int 
@@ -189,10 +189,13 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
     """
         
     cube = np.empty([int(It),int(nfields),int(len(dic_freq))])
-
+    mask = hp.pixelfunc.reorder(mask, r2n = True)
+    
     for i in range(len(maps_array)):
                  
         Fmap = smooth2reso(wt_reso=wt_reso,ori_reso=dic_reso[i],Hmap=maps_array[i])
+        
+        Fmap = hp.pixelfunc.reorder(Fmap, r2n = True)
         
         if mask is not None: 
             
@@ -519,18 +522,24 @@ def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):
     inv_cov = np.linalg.inv(cov_matrix) #Take the inverse of the covariance matrix. 
     ILC_weight = (inv_cov @ mix_vect) / (np.transpose(mix_vect) @ inv_cov @ mix_vect) #Compute the weights
     y=0  # Initialisation of the y map. 
-    
-    #Compute y map : 
-    for i in range(0,len(mix_vect)): #Go through all the frequencies.
-        
-        if nside_tess == 0: 
+    print('original ILC weights',ILC_weight)
+         
+            
+    for i in range(0,len(mix_vect)):
+            
+        if nside_tess == 0:
+                
             map_Ti = data[i]
-        else: 
-        
+                
+        else:
+                
             map_Ti = data[:,k,i]
+                
         y = y + ILC_weight[i] * map_Ti  
+        
+    print('Sum of the ILC weights : ',sum(mix_vect*ILC_weight))
 
-    return y
+    return y,ILC_weight
 
 def CILC_weights(mix_vect_b,mix_vect_a,data,cov_matrix,k,nside_tess):   
     
@@ -582,7 +591,7 @@ def CILC_weights(mix_vect_b,mix_vect_a,data,cov_matrix,k,nside_tess):
             map_Ti = data[:,k,i]
         y = y + CILC_weight[i] * map_Ti  
 
-    return y
+    return y,CILC_weight
 
 def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median,gauss,
                 CILC,mask,mix_vec_min,mix_vec_max):
@@ -628,12 +637,10 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
 
     """ 
     
-    # Case were there is no tessalation of the sky, ILC/CILC is apply on the entire sky
     if nside_tess == 0:
         
-        Cube_map = mergemaps(maps_array=maps_array,wt_reso=wt_reso,dic_reso=dic_reso) #megerge all frequencies into one array 
+        Cube_map = mergemaps(maps_array=maps_array,wt_reso=wt_reso,dic_reso=dic_reso)
         
-        #If one wants to mask a region of the sky
         if mask is not None: 
             
             Cube_map *= mask
@@ -642,45 +649,43 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
             
             Cube_map = Cube_map  
             
-        cov_mat = covcorr_matrix(Cube_map,rowvar=True,mask=mask,dic_freq=dic_freq) #COmpute covariance matrix
+        cov_mat = covcorr_matrix(Cube_map,rowvar=True,mask=mask,dic_freq=dic_freq)
         
-        #Weather one wants to apply ILC
         if CILC == False: 
                     
-            fmap = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=0,
-                               nside_tess=nside_tess)#Compute the ILC-extracted map
+            fmap_f = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=0,
+                               nside_tess=nside_tess)
+            fmap = fmap_f[0]
+            wmap = fmap_f[1]
             
-            if mask is not None:
-                    
-                not_masked = np.where(fmap[:] != 0)[0]
-                data = fmap[not_masked]
-                offset = np.nanmedian(data)
-                fmap[not_masked] = data - offset
-                
-            else: 
-            
-                offset = np.median(fmap)        
-                fmap = fmap - offset
-                
-        #Weather one wants to apply CILC
-        else: 
-            
-            fmap = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
-                                cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess)
+            offset = np.median(fmap) 
+            fmap = fmap - offset
             
             if mask is not None: 
                 
-                not_masked = np.where(fmap[:] != 0)[0]
-                data = fmap[not_masked]
-                offset = np.nanmedian(data)
-                fmap[not_masked] = data - offset
+                fmap *= mask
                 
             else: 
                 
-                offset = np.median(fmap)
-                fmap = fmap - offset
-    
-    #Tessalation of the sky, the ILC/CILC is applid on several small patches 
+                fmap = fmap
+        
+        else: 
+            
+            fmap_f = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
+                                cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess)
+            fmap = fmap_f[0]
+            wmap = fmap_f[1]
+            
+            offset = np.median(fmap)
+            fmap = fmap - offset
+            
+            if mask is not None: 
+                
+                fmap *= mask
+                
+            else: 
+                
+                fmap = fmap
     else:
 
         nfields = hp.nside2npix(nside_tess) 
@@ -690,20 +695,22 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
         #Create cube : 
         Cube_map = map2fields(maps_array=maps_array,It=It,nfields=nfields,wt_reso=wt_reso,dic_reso=dic_reso,
                                   median=median,gauss=gauss,mask=mask,dic_freq=dic_freq)
-
+        wmap = np.zeros((nfields,len(dic_freq)))
         fmap = np.zeros(npix)
+        
         l=0
 
-        #For each patch : 
         for i in range(0,npix,It):
                 
             cov_mat = covcorr_matrix(Cube_map[:,l,:],rowvar=False,mask=mask,dic_freq=dic_freq)
             
-            #When one is doing a ILC
             if  CILC == False: 
             
-                y = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=l,
+                y_f = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=l,
                                 nside_tess=nside_tess)  
+                y = y_f[0]
+                ib = int(i/It)
+                wmap[ib,:]=y_f[1]
                 
                 if mask is not None: 
                     
@@ -720,11 +727,14 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
                 fmap[i:i+It]= y 
                 l=l+1
                 
-            #WHen doing a CILC    
+                
             else:
                               
-                compo = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
+                compo_f = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
                                      cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess)
+                compo = compo_f[0]
+                ib = int(i/It)
+                wmap[ib,:]=compo_f[1]
                 
                 if mask is not None: 
                     
@@ -740,9 +750,11 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
                     
                 fmap[i:i+It] = compo 
                 l=l+1
+                
+        #fmap = hp.pixelfunc.reorder(fmap, n2r = True)
                     
                 
-    return fmap
+    return fmap,wmap
 
 def ILC_residuals(resi_maps,true_maps,nside,nside_tess,wt_reso,dic_reso,median,gauss,mask,dic_freq): 
     
@@ -811,3 +823,30 @@ def ILC_residuals(resi_maps,true_maps,nside,nside_tess,wt_reso,dic_reso,median,g
     fmap *= mask 
     
     return fmap
+
+def weight_maps(nside,nside_tess,dic_freq,mask):  
+    
+    for j in range(len(dic_freq)): 
+
+        npix = hp.nside2npix(nside)
+        nfields=hp.nside2npix(nside_tess)
+        It = int(npix/nfields)
+        weight_map = np.zeros(npix)
+
+        for i in range(0,nfields): 
+    
+            if i==0: 
+        
+                weight_map[0:It]=Compton_y[1][:,j][i]*np.ones(It)
+        
+            else : 
+        
+                weight_map[i*It:i*It+It]=Compton_y[1][:,j][i]*np.ones(It)
+    
+        weight_map[np.isnan(weight_map)] = 0
+        mask2 = hp.pixelfunc.reorder(mask, r2n = True)
+        weight_map = weight_map*mask2
+
+        hp.mollview(map=weight_map, coord=None, unit='MJy/sr', xsize=2000, nest=True, cbar=True, cmap=cm.bwr,
+            norm=None,return_projected_map=True) #min=-6.2248e-6,max=0.000681774,
+    plt.show()
