@@ -824,13 +824,15 @@ def ILC_residuals(resi_maps,true_maps,nside,nside_tess,wt_reso,dic_reso,median,g
     
     return fmap
 
-def weight_maps(nside,nside_tess,dic_freq,mask):  
+def weight_maps(data,nside,nside_tess,dic_freq,mask):  
     
     """
     Code to compute the ILC weights maps. 
 
     Parameters
     ----------    
+    data : array 
+        Array containing the weights for each frequency map.
     nside : int 
         Nside of the maps we applied the ILC/CILC on. 
     nside_tess : int 
@@ -859,11 +861,11 @@ def weight_maps(nside,nside_tess,dic_freq,mask):
     
             if i==0: 
         
-                weight_map[0:It]=Compton_y[1][:,j][i]*np.ones(It)
+                weight_map[0:It]=data[:,j][i]*np.ones(It)
         
             else : 
         
-                weight_map[i*It:i*It+It]=Compton_y[1][:,j][i]*np.ones(It)
+                weight_map[i*It:i*It+It]=data[:,j][i]*np.ones(It)
     
         weight_map[np.isnan(weight_map)] = 0
         mask2 = hp.pixelfunc.reorder(mask, r2n = True)
