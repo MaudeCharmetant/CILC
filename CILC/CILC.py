@@ -6,6 +6,7 @@ from astropy.cosmology import FlatLambdaCDM
 from astropy import constants as cst
 from matplotlib import rc
 import matplotlib.cm as cm
+import matplotlib.pyplot as plt 
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
@@ -877,7 +878,7 @@ def weight_maps(data,nside,nside_tess,dic_freq,mask):
         
     plt.show()
     
-def weight_histo(data): 
+def weight_histo(data,dic_freq): 
     
     """
     Code that return the medians values of the weights for each frequency map. 
@@ -901,4 +902,4 @@ def weight_histo(data):
         x = x[np.logical_not(np.isnan(x))]
         m_weights.append(np.median(x)) 
     
-    return m_weights  
+    return m_weights
