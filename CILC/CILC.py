@@ -900,6 +900,6 @@ def weight_histo(data,dic_freq):
     
         x = data[:,i]
         x = x[np.logical_not(np.isnan(x))]
-        m_weights.append(np.median(x)) 
+        m_weights.append(np.mean(x)) 
     
     return m_weights
