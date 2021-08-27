@@ -574,10 +574,10 @@ def CILC_weights(mix_vect_b,mix_vect_a,data,cov_matrix,k,nside_tess):
 
     #Compute the weight of the ILC : 
     inv_cov = np.linalg.inv(cov_matrix) #Take the inverse of the covariance matrix. 
-    p1 = (inv_cov  @ mix_vect_a) * (np.transpose(mix_vect_b) @ inv_cov @ mix_vect_b)
-    p2 = (inv_cov  @ mix_vect_b) *  (np.transpose(mix_vect_b) @ inv_cov @ mix_vect_a)
-    p3 = (np.transpose(mix_vect_b) @ inv_cov  @ mix_vect_b) * (np.transpose(mix_vect_a) @ inv_cov  @ mix_vect_a)
-    p4 = (np.transpose(mix_vect_b) @ inv_cov  @ mix_vect_a)**2
+    p1 = (np.transpose(mix_vect_b) @ inv_cov @ mix_vect_b)*(np.transpose(mix_vect_a) @ inv_cov)
+    p2 = (np.transpose(mix_vect_a) @ inv_cov @ mix_vect_b)*(np.transpose(mix_vect_b) @ inv_cov)
+    p3 = (np.transpose(mix_vect_a) @ inv_cov  @ mix_vect_a) * (np.transpose(mix_vect_b) @ inv_cov  @ mix_vect_b)
+    p4 = (np.transpose(mix_vect_a) @ inv_cov  @ mix_vect_b)**2
     
     CILC_weight = (p1 - p2) / (p3 - p4)
     
