@@ -159,7 +159,7 @@ def gaussian_fit(Hmap,bin_nb):
     
     return popt[1]
 
-def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq): 
+def map2fields(maps_array,maps_noise,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq): 
     
     """
     Function which read maps at different frequencies, smooth them to a desired resolution and merge them 
@@ -170,6 +170,8 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
     
     maps_array : array 
         Containing all the healpy maps we want to perform the ILC on should be in RING ordering.
+    maps_noise : array 
+        Containing all the healpy maps of the noises in our ILC.       
     It : int 
         Number of pixels per field.
     nfields : int 
@@ -196,6 +198,8 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
     for i in range(len(maps_array)):
                  
         Fmap = smooth2reso(wt_reso=wt_reso,ori_reso=dic_reso[i],Hmap=maps_array[i])
+        
+        Fmap += maps_noise[i]
         
         Fmap = hp.pixelfunc.reorder(Fmap, r2n = True)
         
@@ -595,7 +599,7 @@ def CILC_weights(mix_vect_b,mix_vect_a,data,cov_matrix,k,nside_tess):
 
     return y,CILC_weight
 
-def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median,gauss,
+def All_sky_ILC(dic_freq,maps_array,maps_noise,nside_map,nside_tess,wt_reso,dic_reso,median,gauss,
                 CILC,mask,mix_vec_min,mix_vec_max):
     
     """
@@ -607,8 +611,10 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
         Dictonary containing all the frequencies of the map we want to apply the ILC or CILC on. 
     maps_array : arrray 
         Array containing all the maps we want to apply the ILC on. 
+    maps_noise : arrray 
+        Array containing all the noise maps component of the ILC.       
     nside_map : int 
-        Nside of the all the maps we want to apply the ILC on. 
+        Nside maps of the ILC, separed from the foreground because they do not take the beam.  
     nside_tess : int 
         Nside that define the number of field we will separate the all sky map in. To apply the ILC or CILC
         on each of this field separatly. I recommend nside_tess = 4.
@@ -695,7 +701,7 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
         It = int(npix/nfields)
             
         #Create cube : 
-        Cube_map = map2fields(maps_array=maps_array,It=It,nfields=nfields,wt_reso=wt_reso,dic_reso=dic_reso,
+        Cube_map = map2fields(maps_array=maps_array,maps_noise=maps_noise,It=It,nfields=nfields,wt_reso=wt_reso,dic_reso=dic_reso,
                                   median=median,gauss=gauss,mask=mask,dic_freq=dic_freq)
         wmap = np.zeros((nfields,len(dic_freq)))
         fmap = np.zeros(npix)
