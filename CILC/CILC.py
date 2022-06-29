@@ -294,7 +294,7 @@ def D_I_tSZ(x,y,MJy=False):
     
     return   Delta_I
 
-def D_I_CMB(x):
+def D_I_CMB(x,MJy=False):
     
     """
     Function which compute the CMB spectral shape. 
@@ -313,9 +313,15 @@ def D_I_CMB(x):
     """ 
         
     #Compute Delta I :  
+    I_0 = (2*(cst.k_B.value*T_CMB)**3)/(cst.h.value*cst.c.value)**2  
+    I_0 = I_0*1e20
     x_nu = np.array((cst.h.value*x)/(cst.k_B.value*T_CMB)) 
     A=np.array((2*cst.h.value*x**3)/(cst.c.value**2))  
     Delta_I= A * (x_nu/T_CMB)* np.exp(x_nu) / ((np.exp(x_nu)-1)**2) *1e20
+    
+    if MJy == False: 
+        
+        Delta_I = Delta_I * (T_CMB/I_0) * ((np.exp(x_nu)-1)**2) / (x_nu**4*np.exp(x_nu))
     
     #Give feedback to the operator : 
     print("Delta I as been computed ")
