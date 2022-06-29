@@ -169,7 +169,7 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
     ----------
     
     maps_array : array 
-        Containing all the healpy maps we want to perform the ILC on should be in RING ordering.      
+        Containing all the healpy maps we want to perform the ILC on should be in RING ordering.
     It : int 
         Number of pixels per field.
     nfields : int 
@@ -189,9 +189,10 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
         is the number of frequencies.  
 
     """
-        
     cube = np.empty([int(It),int(nfields),int(len(dic_freq))])
-    mask = hp.pixelfunc.reorder(mask, r2n = True)
+    
+    if mask is not None: 
+        mask = hp.pixelfunc.reorder(mask, r2n = True)
     
     for i in range(len(maps_array)):
                  
@@ -209,17 +210,9 @@ def map2fields(maps_array,It,nfields,wt_reso,dic_reso,median,gauss,mask,dic_freq
         
         k=0
         for j in range(0,len(Fmap),It):  
-                
-                #if median == True: 
                     
                 cube[0:It,k,i]+= Fmap[j:j+It]
                 k = k+1   
-                    
-                #else: 
-                    
-                #offset = sz.create_histogram(Fmap[j:j+It-1], int(np.sqrt(np.size(Fmap[j:j+It-1]))), fit=True, plot=False) 
-                #cube[0:It-1,k,i]+= Fmap[j:j+It-1] - [offset[0]]*(It-1)
-                #k = k+1  
 
     return cube 
 
@@ -435,7 +428,7 @@ def mixing_vector_CMB(dic_freq,MJy=False):
     if MJy == True: 
     
         # Compute the spectral shape of CMB : 
-        Delta_I = D_I_CMB(freq)
+        Delta_I = D_I_CMB(freq,MJy=True)
 
         #For each frequency channel, compute Delta_I : 
         for i in range(len(dic_freq)):
@@ -493,7 +486,7 @@ def mixing_vector_CIB(dic_freq,A=1,b=1.2,T_CIB=24,MJy=False):
 
     return mix_vect
 
-def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):   
+def ILC_weights(mix_vec_max,mix_vec_b,mix_vec_c,data,cov_matrix,k,nside_tess,CILC=False,DILC=False):   
     
         
     """
@@ -501,8 +494,12 @@ def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):
 
     Parameters
     ----------    
-    mix_vect : list 
-        List containing all the values of the mixing vector. 
+    mix_vect_max : list 
+        List containing all the values of the mixing vector of the component we want to get back. 
+    mix_vect_b : list 
+        List containing all the values of the mixing vector of the component we want to supress. 
+    mix_vect_c : list 
+        List containing all the values of the mixing vector of the component we want to supress. 
     data : array 
         Array containing all the maps we want to apply the ILC on. 
     cov_matrix : array 
@@ -520,14 +517,39 @@ def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):
         Cotaining the Compton-y map. 
 
     """ 
+    
+    y=0
+    inv_cov = np.linalg.inv(cov_matrix)
+    
+    if CILC == True: 
+                                                           
+        p1 = (inv_cov  @ mix_vec_max) * (np.transpose(mix_vec_b) @ inv_cov @ mix_vec_b)
+        p2 = (inv_cov  @ mix_vec_b) *  (np.transpose(mix_vec_b) @ inv_cov @ mix_vec_max)
+        p3 = (np.transpose(mix_vec_b) @ inv_cov  @ mix_vec_b) * (np.transpose(mix_vec_max) @ inv_cov  @ mix_vec_max)
+        p4 = (np.transpose(mix_vec_b) @ inv_cov  @ mix_vec_max)**2
+    
+        ILC_weight = (p1 - p2) / (p3 - p4)   
         
-    inv_cov = np.linalg.inv(cov_matrix) #Take the inverse of the covariance matrix. 
-    ILC_weight = (inv_cov @ mix_vect) / (np.transpose(mix_vect) @ inv_cov @ mix_vect) #Compute the weights
-    y=0  # Initialisation of the y map. 
-    print('original ILC weights',ILC_weight)
-         
-            
-    for i in range(0,len(mix_vect)):
+    elif DILC == True: 
+        
+        A1=(np.transpose(mix_vec_max) @ inv_cov  @ mix_vec_max)
+        B1=(np.transpose(mix_vec_b) @ inv_cov  @ mix_vec_b)
+        Q1=(np.transpose(mix_vec_c) @ inv_cov  @ mix_vec_c)
+        C1=(np.transpose(mix_vec_max) @ inv_cov  @ mix_vec_b)
+        D1=(np.transpose(mix_vec_max) @ inv_cov  @ mix_vec_c) 
+        F1=(np.transpose(mix_vec_b) @ inv_cov  @ mix_vec_c)
+    
+        pop = np.array([[A1,C1,D1],[C1,B1,F1],[D1,F1,Q1]])
+        pop2 = np.array([1,0,0])
+        x = np.linalg.solve(pop, pop2)
+    
+        ILC_weight = x[0]*inv_cov@ mix_vec_max+x[1]*inv_cov  @ mix_vec_b+x[2]*inv_cov  @ mix_vec_c
+        
+    else: 
+        
+        ILC_weight = (inv_cov @ mix_vec_max) / (np.transpose(mix_vec_max) @ inv_cov @ mix_vec_max) #Compute the weights
+        
+    for i in range(0,len(mix_vec_max)):
             
         if nside_tess == 0:
                 
@@ -539,14 +561,13 @@ def ILC_weights(mix_vect,data,cov_matrix,k,nside_tess):
                 
         y = y + ILC_weight[i] * map_Ti  
         
-    print('Sum of the ILC weights : ',sum(mix_vect*ILC_weight))
+    print('Sum of the ILC weights : ',sum(mix_vec_max*ILC_weight))
 
     return y,ILC_weight
 
+"""
 def CILC_weights(mix_vect_b,mix_vect_a,data,cov_matrix,k,nside_tess):   
     
-        
-    """
     Function which compute the weights used by the ILC and do the ILC.
 
     Parameters
@@ -570,8 +591,6 @@ def CILC_weights(mix_vect_b,mix_vect_a,data,cov_matrix,k,nside_tess):
     array
         Containing the CMB map. 
 
-    """ 
-
     #Compute the weight of the ILC : 
     inv_cov = np.linalg.inv(cov_matrix) #Take the inverse of the covariance matrix. 
     p1 = (np.transpose(mix_vect_b) @ inv_cov @ mix_vect_b)*(np.transpose(mix_vect_a) @ inv_cov)
@@ -594,9 +613,10 @@ def CILC_weights(mix_vect_b,mix_vect_a,data,cov_matrix,k,nside_tess):
         y = y + CILC_weight[i] * map_Ti  
 
     return y,CILC_weight
+"""
 
 def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median,gauss,
-                CILC,mask,mix_vec_min,mix_vec_max):
+                CILC,DILC,mask,mix_vec_b,mix_vec_c,mix_vec_max):
     
     """
     Code which perform all the steps of an ILC or CILC. 
@@ -606,7 +626,7 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
     dic_freq : dictonary
         Dictonary containing all the frequencies of the map we want to apply the ILC or CILC on. 
     maps_array : arrray 
-        Array containing all the maps we want to apply the ILC on.       
+        Array containing all the maps we want to apply the ILC on. 
     nside_map : int 
         Nside of the all the maps we want to apply the ILC on. 
     nside_tess : int 
@@ -653,107 +673,90 @@ def All_sky_ILC(dic_freq,maps_array,nside_map,nside_tess,wt_reso,dic_reso,median
             
         cov_mat = covcorr_matrix(Cube_map,rowvar=True,mask=mask,dic_freq=dic_freq)
         
-        if CILC == False: 
-                    
-            fmap_f = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=0,
-                               nside_tess=nside_tess)
-            fmap = fmap_f[0]
-            wmap = fmap_f[1]
+        if CILC == True: 
             
-            offset = np.median(fmap) 
-            fmap = fmap - offset
+            print('applying CILC')
+            fmap_f = ILC_weights(mix_vec_b=mix_vec_b,mix_vec_max=mix_vec_max,mix_vec_c=[0],data=Cube_map,
+                                cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess,CILC=True,DILC=False)            
+                
+        elif DILC == True: 
             
-            if mask is not None: 
-                
-                fmap *= mask
-                
-            else: 
-                
-                fmap = fmap
+            print('applying CILC with two null components')
+            fmap_f = ILC_weights(mix_vec_b=mix_vec_b,mix_vec_max=mix_vec_max,mix_vec_c=mix_vec_c,
+                                  data=Cube_map,cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess,
+                                  CILC=False,DILC=True)              
         
         else: 
             
-            fmap_f = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
-                                cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess)
-            fmap = fmap_f[0]
-            wmap = fmap_f[1]
+            print('applying ILC')
+            fmap_f = ILC_weights(mix_vec_max=mix_vec_max,mix_vec_b=[0],mix_vec_c=[0],data=Cube_map,
+                                 cov_matrix=cov_mat[0],k=0,nside_tess=nside_tess,CILC=False,DILC=False)
             
-            offset = np.median(fmap)
-            fmap = fmap - offset
+        fmap = fmap_f[0]
+        wmap = fmap_f[1]
             
-            if mask is not None: 
+        offset = np.median(fmap) 
+        fmap = fmap - offset
+            
+            
+        if mask is not None: 
                 
-                fmap *= mask
+            fmap *= mask
                 
-            else: 
+        else: 
                 
-                fmap = fmap
+            fmap = fmap
     else:
-
+        
         nfields = hp.nside2npix(nside_tess) 
         npix = hp.nside2npix(nside_map)
         It = int(npix/nfields)
             
-        #Create cube : 
+        #Create cube :   
         Cube_map = map2fields(maps_array=maps_array,It=It,nfields=nfields,wt_reso=wt_reso,dic_reso=dic_reso,
                                   median=median,gauss=gauss,mask=mask,dic_freq=dic_freq)
         wmap = np.zeros((nfields,len(dic_freq)))
         fmap = np.zeros(npix)
         
         l=0
-
         for i in range(0,npix,It):
                 
             cov_mat = covcorr_matrix(Cube_map[:,l,:],rowvar=False,mask=mask,dic_freq=dic_freq)
             
-            if  CILC == False: 
-            
-                y_f = ILC_weights(mix_vect=mix_vec_max,data=Cube_map,cov_matrix=cov_mat[0],k=l,
-                                nside_tess=nside_tess)  
-                y = y_f[0]
-                ib = int(i/It)
-                wmap[ib,:]=y_f[1]
+            if  CILC == True: 
                 
-                if mask is not None: 
-                    
-                    not_masked = np.where(y[:] != 0)[0]
-                    data = y[not_masked]
-                    offset = np.nanmedian(data)
-                    y[not_masked] = data - offset
-                
-                else: 
-                
-                    offset = np.median(y)
-                    y = y - offset 
-                    
-                fmap[i:i+It]= y 
-                l=l+1
-                
-                
+                print('applying CILC')            
+                compo_f = ILC_weights(mix_vec_b=mix_vec_b,mix_vec_max=mix_vec_max,mix_vec_c=mix_vec_c,data=Cube_map,
+                                     cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess,CILC=True,DILC=False)     
+            elif DILC == True: 
+
+                print('applying CILC with two null components')
+                compo_f = ILC_weights(mix_vec_b=mix_vec_b,mix_vec_max=mix_vec_max,mix_vec_c=mix_vec_c,data=Cube_map,
+                                     cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess,CILC=False,DILC=True)  
             else:
-                              
-                compo_f = CILC_weights(mix_vect_b=mix_vec_min,mix_vect_a=mix_vec_max,data=Cube_map,
-                                     cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess)
-                compo = compo_f[0]
-                ib = int(i/It)
-                wmap[ib,:]=compo_f[1]
                 
-                if mask is not None: 
-                    
-                    not_masked = np.where(compo[:] != 0)[0]
-                    data = compo[not_masked]
-                    offset = np.nanmedian(data)
-                    compo[not_masked] = data - offset
-                    
-                else: 
-                    
-                    offset = np.median(compo)
-                    compo = compo - offset 
-                    
-                fmap[i:i+It] = compo 
-                l=l+1
+                print('applying ILC')             
+                compo_f = ILC_weights(mix_vec_b=mix_vec_b,mix_vec_max=mix_vec_max,mix_vec_c=mix_vec_c,data=Cube_map,
+                                      cov_matrix=cov_mat[0],k=l,nside_tess=nside_tess,CILC=False,DILC=False)  
+            
+            compo = compo_f[0]
+            ib = int(i/It)
+            wmap[ib,:]=compo_f[1]
                 
-        #fmap = hp.pixelfunc.reorder(fmap, n2r = True)
+            if mask is not None: 
+                    
+                not_masked = np.where(compo[:] != 0)[0]
+                data = compo[not_masked]
+                offset = np.nanmedian(data)
+                compo[not_masked] = data - offset
+                    
+            else: 
+                    
+                offset = np.median(compo)
+                compo = compo - offset 
+                    
+            fmap[i:i+It] = compo 
+            l=l+1
                     
                 
     return fmap,wmap
