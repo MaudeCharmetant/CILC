@@ -882,8 +882,9 @@ def weight_maps(data,nside,nside_tess,dic_freq,mask):
         mask2 = hp.pixelfunc.reorder(mask, r2n = True)
         weight_map = weight_map*mask2
 
-        hp.mollview(map=weight_map, coord=None, unit='$\mathrm{MJy}^{-1}\mathrm{sr}$', xsize=2000, nest=True, cbar=True, cmap=cm.bwr,
+        hp.mollview(map=weight_map,title='', coord=None, unit='$\mathrm{MJy}^{-1}\mathrm{sr}$', xsize=2000, nest=True, cbar=True, cmap=cm.bwr,
             norm=None,return_projected_map=True) 
+        plt.savefig('weights.pdf', bbox_inches='tight')
         
     plt.show()
     
